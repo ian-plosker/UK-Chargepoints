@@ -1,0 +1,21 @@
+{
+  "name": "UK Chargepoints",
+  "version": "0.0.1",
+  "homepage": "https://github.com/ian-plosker/UK-Chargepoints",
+  "description": "An app for locating Chargepoints in the UK",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "core-elements": "Polymer/core-elements",
+    "paper-elements": "Polymer/paper-elements",
+    "google-map": "GoogleWebComponents/google-map"
+  }
+}

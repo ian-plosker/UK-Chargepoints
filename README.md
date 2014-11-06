@@ -1,4 +1,4 @@
-orchestrate-heroku-search
+UK-Chargepoints
 =========================
 
-This small golang application provides a simple way to search Orchestrate apps over the web without needing credentials.
+This small golang/polymer app that locates Chargepoints in the UK.

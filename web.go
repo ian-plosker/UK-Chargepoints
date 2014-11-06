@@ -15,9 +15,10 @@ var (
 )
 
 func main() {
+	web.Config.StaticDir = "."
 	port := os.Getenv("PORT")
 	log.Printf("Listening on port %v ...", port)
-	web.Get("/([^/]+/?)", search)
+	web.Get("/api/([^/]+/?)", search)
 	web.Run(":" + port)
 }
 
