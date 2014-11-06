@@ -3,24 +3,34 @@
 
 <head>
 
-  <title>unquote</title>
+  <title>UK Chargepoints</title>
 
   <meta name="viewport"
   content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
 
-  <script src="/bower_components/platform/platform.js">
-  </script>
+  <script src="/bower_components/platform/platform.js"></script>
 
-  <link rel="import" href="/bower_components/font-roboto/roboto.html">
+  <link rel="import"
+    href="/bower_components/font-roboto/roboto.html">
 
   <link rel="import"
     href="/bower_components/core-header-panel/core-header-panel.html">
   <link rel="import"
+    href="/bower_components/core-drawer-panel/core-drawer-panel.html">
+  <link rel="import"
     href="/bower_components/core-toolbar/core-toolbar.html">
   <link rel="import"
-    href="/bower_components/paper-tabs/paper-tabs.html">
-  <link rel="import" href="/bower_components/google-map/google-map.html">
-  <link rel="import" href="/bower_components/core-ajax/core-ajax.html">
+    href="/bower_components/core-list/core-list.html">
+  <link rel="import"
+    href="/bower_components/core-icon-button/core-icon-button.html">
+  <link rel="import"
+    href="/bower_components/paper-item/paper-item.html">
+  <link rel="import"
+    href="/bower_components/core-icons/maps-icons.html">
+  <link rel="import"
+    href="/bower_components/google-map/google-map.html">
+  <link rel="import"
+    href="/bower_components/core-ajax/core-ajax.html">
 
   <style>
   html,body {
@@ -51,6 +61,9 @@
     background: orange;
     color: white;
   }
+  core-icon-button {
+      color:white;
+  }
   #tabs {
     width: 100%;
     margin: 0;
@@ -71,20 +84,34 @@
 <body unresolved>
   <core-header-panel>
 
-    <core-toolbar>
-      <paper-tabs id="tabs" selected="all" self-end>
-        <paper-tab name="chargepoints">Chargepoints</paper-tab>
-      </paper-tabs>
-    </core-toolbar>
+  <core-toolbar>
+    <div flex>UK Chargepoints</div>
+    <core-icon-button icon="maps:my-location" id="locate"></core-icon-button>
+    <core-icon-button icon="refresh" id="refresh"></core-icon-button>
+    <core-icon-button icon="list" id="drawer-toggle"></core-icon-button>
+  </core-toolbar>
 
-    <google-map></google-map>
+  <core-drawer-panel id="drawer" rightDrawer>
+    <core-header-panel drawer>
+      <core-list>
+        <template>
+          <div class="{{ {selected: selected} | tokenList }}">
+            <paper-item label="{{model.value.ChargeDeviceName}}"></paper-item>
+          </div>
+        </template>
+      </core-list>
+    </core-header-panel>
+    <div main>
+      <google-map></google-map>
+    </div>
+  </core-drawer-panel>
+
 
   </core-header-panel>
   <core-ajax
     url="/api/ChargePoints"
-    params='{"query":"*", "limit":"100"}'
-    handleAs="json"
-    on-core-response="{{handleResponse}}"></core-ajax>
+    handleAs="json">
+  </core-ajax>
   <script>
     var tabs = document.querySelector('paper-tabs');
 
@@ -93,27 +120,77 @@
     var map = document.querySelector('google-map');
     map.latitude = 51.48;
     map.longitude = 0;
-    map.zoom = 8;
+
+    var drawer = document.querySelector('core-drawer-panel');
+    var list = document.querySelector('core-list');
+
     map.addEventListener('google-map-ready', function(e) {
+      loadChargePoints(map);
+    });
+
+    chargePointsApi.addEventListener('core-response', function(e) {
+      map.clear();
+      list.data = chargePointsApi.response.results;
+      for (i in chargePointsApi.response.results) {
+        var result = chargePointsApi.response.results[i].value;
+
+        if (result.ChargeDeviceLocation.Latitude == null || result.ChargeDeviceLocation.Longitude == null) continue;
+
+        var marker = document.createElement('google-map-marker');
+        marker.latitude = result.ChargeDeviceLocation.Latitude;
+        marker.longitude = result.ChargeDeviceLocation.Longitude;
+
+        marker.innerHTML = result.ChargeDeviceName;
+
+        map.appendChild(marker);
+      }
+      map.fitToMarkers = true;
+      map.fitToMarkers = false;
+    });
+
+    function inUK(coords) {
+      var boundingBoxUK =  {
+        north: 60.854691,
+        east: 1.768960,
+        south: 49.162090,
+        west: -13.413930
+      };
+
+      return (coords.latitude <= boundingBoxUK.north && coords.latitude >= boundingBoxUK.south
+           && coords.longitude >= boundingBoxUK.west && coords.longitude <= boundingBoxUK.east);
+    }
+
+    function loadChargePoints(coords) {
+      if (!inUK(coords)) {
+        alert("You cannot search outside the UK.");
+        return;
+      }
+
+      chargePointsApi.params = '{"sort":"value.ChargeDeviceLocation:distance:asc","limit":"100","query":"value.ChargeDeviceLocation:NEAR:{lat:'+coords.latitude+' long:'+coords.longitude+' dist:25km}"}';
+      chargePointsApi.go();
+    }
+
+    document.querySelector('#refresh').addEventListener('click', function () {
+      map.clear();
+      loadChargePoints(map);
+    });
+
+    document.querySelector('#locate').addEventListener('click', function () {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(geo) {
-          map.latitude = geo.coords.latitude;
-          map.longitude = geo.coords.longitude;
+          if (inUK(geo.coords)) {
+            map.latitude = geo.coords.latitude;
+            map.longitude = geo.coords.longitude;
+          }
 
-          chargePointsApi.params = '{"limit":"100","query":"value.ChargeDeviceLocation:NEAR:{lat:'+map.latitude+' long:'+map.longitude+' dist:10km}"}';
-          chargePointsApi.go();
+          loadChargePoints(map);
         });
       }
     });
 
-    chargePointsApi.addEventListener('core-response', function(e) {
-      for (result in chargePointsApi.response.results) {
-        var marker = document.createElement('google-map-marker');
-        marker.latitude = chargePointsApi.response.results[result].value.ChargeDeviceLocation.Latitude;
-        marker.longitude = chargePointsApi.response.results[result].value.ChargeDeviceLocation.Longitude;
-        map.appendChild(marker);
-      }
-      map.fitToMarkers = true;
+    document.querySelector('#drawer-toggle').addEventListener('click', function(e) {
+      console.log(drawer);
+      document.querySelector('core-drawer-panel').closeDrawer();
     });
   </script>
 </body>

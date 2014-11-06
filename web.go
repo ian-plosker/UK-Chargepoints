@@ -12,6 +12,7 @@ import (
 
 var (
 	c = gorc.NewClient(os.Getenv("ORC_KEY"))
+	host = os.Getenv("ORC_HOST")
 )
 
 func main() {
@@ -23,6 +24,10 @@ func main() {
 }
 
 func search(ctx *web.Context, collection string) {
+	if (host != "") {
+		c.APIHost = host
+	}
+
 	ctx.ContentType("json")
 	ctx.SetHeader("Access-Control-Allow-Origin", "*", true)
 
@@ -46,6 +51,7 @@ func search(ctx *web.Context, collection string) {
 	if err != nil {
 		encoder.Encode(err)
 		ctx.WriteHeader(err.(*gorc.OrchestrateError).StatusCode)
+		log.Println(err)
 	} else {
 		encoder.Encode(results)
 	}

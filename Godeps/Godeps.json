@@ -1,6 +1,6 @@
 {
-	"ImportPath": "orchestrate-heroku-search",
-	"GoVersion": "go1.2.1",
+	"ImportPath": "chargepoints",
+	"GoVersion": "go1.3.3",
 	"Deps": [
 		{
 			"ImportPath": "code.google.com/p/go.net/websocket",
@@ -14,7 +14,7 @@
 		},
 		{
 			"ImportPath": "github.com/orchestrate-io/gorc",
-			"Rev": "f1d1218b5f54fd0c93c57b8a658ff747dff0a8bf"
+			"Rev": "4ee53ba05656b73d80a697d8c1c515246df2a852"
 		}
 	]
 }

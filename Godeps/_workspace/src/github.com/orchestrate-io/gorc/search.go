@@ -1,4 +1,16 @@
-// Copyright 2014, Orchestrate.IO, Inc.
+// Copyright 2014 Orchestrate, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package gorc
 
@@ -21,17 +33,42 @@ type SearchResults struct {
 type SearchResult struct {
 	Path     Path            `json:"path"`
 	Score    float64         `json:"score"`
+	Distance float64         `json:"distance"`
 	RawValue json.RawMessage `json:"value"`
 }
 
 // Search a collection with a Lucene Query Parser Syntax Query
 // (http://lucene.apache.org/core/4_5_1/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#Overview)
 // and with a specified size limit and offset.
-func (c *Client) Search(collection, query string, limit, offset int) (*SearchResults, error) {
+func (c *Client) Search(
+	collection, query string, limit, offset int,
+) (*SearchResults, error) {
 	queryVariables := url.Values{
 		"query":  []string{query},
 		"limit":  []string{strconv.Itoa(limit)},
 		"offset": []string{strconv.Itoa(offset)},
+	}
+
+	trailingUri := collection + "?" + queryVariables.Encode()
+
+	return c.doSearch(trailingUri)
+}
+
+// Like Search() except this sorts the search results.
+//
+// sortBy is a dot joined field list followed by either "asc" or "desc".
+// for example: "value.field1:asc" would sort all of the results, ascending
+// by the value in "field1" in each document.
+//
+// TODO: Add a link to the blog post documenting this.
+func (c *Client) SearchSorted(
+	collection, query, sortBy string, limit, offset int,
+) (*SearchResults, error) {
+	queryVariables := url.Values{
+		"query":  []string{query},
+		"limit":  []string{strconv.Itoa(limit)},
+		"offset": []string{strconv.Itoa(offset)},
+		"sort":   []string{sortBy},
 	}
 
 	trailingUri := collection + "?" + queryVariables.Encode()
@@ -52,17 +89,18 @@ func (c *Client) SearchGetPrev(results *SearchResults) (*SearchResults, error) {
 // Execute a search request.
 func (c *Client) doSearch(trailingUri string) (*SearchResults, error) {
 	resp, err := c.doRequest("GET", trailingUri, nil, nil)
-
 	if err != nil {
 		return nil, err
 	}
-
 	defer resp.Body.Close()
 
+	// If the request ended in error then read the body into an
+	// OrchestrateError object.
 	if resp.StatusCode != 200 {
 		return nil, newError(resp)
 	}
 
+	// Decode the body into a JSON object.
 	decoder := json.NewDecoder(resp.Body)
 	result := new(SearchResults)
 	if err := decoder.Decode(result); err != nil {
