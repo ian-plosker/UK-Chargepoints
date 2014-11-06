@@ -20,6 +20,3 @@ _cgo_export.*
 _testmain.go
 
 *.exe
-
-# Bower
-bower_components/

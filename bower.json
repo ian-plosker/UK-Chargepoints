@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "homepage": "https://github.com/ian-plosker/UK-Chargepoints",
   "description": "An app for locating Chargepoints in the UK",
-  "license": "MIT",
+  "license": "APL 2",
   "private": true,
   "ignore": [
     "**/.*",
