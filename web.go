@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -44,6 +45,7 @@ func search(ctx *web.Context, collection string) {
 	}
 
 	results, err := c.Search(collection, query, int(limit), int(offset))
+	results.Next = strings.Replace(results.Next, "v0", "api", 1)
 
 	buf := new(bytes.Buffer)
 	encoder := json.NewEncoder(buf)
