@@ -25,7 +25,7 @@ type Results struct {
 }
 
 func main() {
-	web.Config.StaticDir = "."
+	web.Config.StaticDir = "static"
 	port := os.Getenv("PORT")
 	log.Printf("Listening on port %v ...", port)
 	web.Get("/api/([^/]+/?)", search)
