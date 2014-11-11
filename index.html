@@ -64,14 +64,8 @@
   core-icon-button {
       color:white;
   }
-  #tabs {
-    width: 100%;
-    margin: 0;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    text-transform: uppercase;
+  core-drawer-panel {
+    background: white;
   }
   google-map {
     display: block;
@@ -91,12 +85,12 @@
     <core-icon-button icon="list" id="drawer-toggle"></core-icon-button>
   </core-toolbar>
 
-  <core-drawer-panel id="drawer" rightDrawer>
-    <core-header-panel drawer>
+  <core-drawer-panel rightDrawer>
+    <core-header-panel drawer id="drawer">
       <core-list>
         <template>
           <div class="{{ {selected: selected} | tokenList }}">
-            <paper-item label="{{model.value.ChargeDeviceName}}"></paper-item>
+            <paper-item label="{{model.value.ChargeDeviceName}}" id="item-{{model.value.ChargeDeviceId}}"></paper-item>
           </div>
         </template>
       </core-list>
@@ -121,15 +115,23 @@
     map.latitude = 51.48;
     map.longitude = 0;
 
-    var drawer = document.querySelector('core-drawer-panel');
+    var drawer = document.querySelector('#drawer');
     var list = document.querySelector('core-list');
 
     map.addEventListener('google-map-ready', function(e) {
-      loadChargePoints(map);
+      google.maps.event.addListener(map.map, 'idle', function() {
+        loadChargePoints(map);
+      });
+    });
+
+    list.addEventListener('core-activate', function(e) {
+      var deviceId = e.detail.data.value.ChargeDeviceId;
+      console.log(document.querySelector("#marker-" + deviceId).__proto__);
     });
 
     chargePointsApi.addEventListener('core-response', function(e) {
-      map.clear();
+      clear();
+
       list.data = chargePointsApi.response.results;
       for (i in chargePointsApi.response.results) {
         var result = chargePointsApi.response.results[i].value;
@@ -139,7 +141,7 @@
         var marker = document.createElement('google-map-marker');
         marker.latitude = result.ChargeDeviceLocation.Latitude;
         marker.longitude = result.ChargeDeviceLocation.Longitude;
-
+        marker.id = "marker-"+result.ChargeDeviceId;
         marker.innerHTML = result.ChargeDeviceName;
 
         map.appendChild(marker);
@@ -148,30 +150,56 @@
       map.fitToMarkers = false;
     });
 
-    function inUK(coords) {
-      var boundingBoxUK =  {
-        north: 60.854691,
-        east: 1.768960,
-        south: 49.162090,
-        west: -13.413930
-      };
+    var boundingBoxUK =  {
+      north: 60.854691,
+      east: 1.768960,
+      south: 49.162090,
+      west: -13.413930
+    };
 
-      return (coords.latitude <= boundingBoxUK.north && coords.latitude >= boundingBoxUK.south
-           && coords.longitude >= boundingBoxUK.west && coords.longitude <= boundingBoxUK.east);
+    function clear() {
+      map.clear();
+      list.data = [];
     }
 
-    function loadChargePoints(coords) {
-      if (!inUK(coords)) {
+    function intersectsUK(bounds) {
+      var ne = new google.maps.LatLng(boundingBoxUK.north, boundingBoxUK.east);
+      var sw = new google.maps.LatLng(boundingBoxUK.south, boundingBoxUK.west);
+      var ukBounds = new google.maps.LatLngBounds(sw, ne);
+
+      return ukBounds.intersects(bounds);
+    }
+
+    function inUK(coords) {
+      var ne = new google.maps.LatLng(boundingBoxUK.north, boundingBoxUK.east);
+      var sw = new google.maps.LatLng(boundingBoxUK.south, boundingBoxUK.west);
+      var ukBounds = new google.maps.LatLngBounds(sw, ne);
+
+      var latlng = new google.maps.LatLng(coords.latitude, coords.longitude);
+      return ukBounds.contains(latlng);
+    }
+
+    function loadChargePoints(map) {
+      var bounds = map.map.getBounds();
+
+      if (!intersectsUK(bounds)) {
         alert("You cannot search outside the UK.");
         return;
       }
 
-      chargePointsApi.params = '{"sort":"value.ChargeDeviceLocation:distance:asc","limit":"100","query":"value.ChargeDeviceLocation:NEAR:{lat:'+coords.latitude+' long:'+coords.longitude+' dist:25km}"}';
+      var ne = bounds.getNorthEast()
+      var sw = bounds.getSouthWest()
+
+      chargePointsApi.params =  '{' +
+                                  '"sort":"value.ChargeDeviceLocation:distance:asc",' +
+                                  '"limit":"100",' +
+                                  '"query":"value.ChargeDeviceLocation:IN:{north:'+ne.lat()+' east:'+ne.lng()+' south:'+sw.lat()+' west:'+sw.lng()+'}"' +
+                                '}';
       chargePointsApi.go();
     }
 
     document.querySelector('#refresh').addEventListener('click', function () {
-      map.clear();
+      clear();
       loadChargePoints(map);
     });
 
@@ -179,18 +207,19 @@
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(geo) {
           if (inUK(geo.coords)) {
+            clear();
             map.latitude = geo.coords.latitude;
             map.longitude = geo.coords.longitude;
+            map.zoom = 15;
+          } else {
+            alert("You cannot search outside the UK.");
           }
-
-          loadChargePoints(map);
         });
       }
     });
 
     document.querySelector('#drawer-toggle').addEventListener('click', function(e) {
-      console.log(drawer);
-      document.querySelector('core-drawer-panel').closeDrawer();
+      document.querySelector('core-drawer-panel').togglePanel();
     });
   </script>
 </body>

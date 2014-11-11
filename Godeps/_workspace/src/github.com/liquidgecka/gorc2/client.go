@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A client for use with Orchestrate.io: http://orchestrate.io/
-//
-// Orchestrate unifies multiple databases through one simple REST API.
-// Orchestrate runs as a service and supports queries like full-text
-// search, events, graph, and key/value.
-//
-// You can sign up for an Orchestrate account here:
-// http://dashboard.orchestrate.io
-package gorc
+package gorc2
 
 import (
+	"compress/flate"
+	"compress/gzip"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -45,7 +38,7 @@ import _ "crypto/sha512"
 
 var (
 	// This is the default hostname that will be queried for API calls.
-	DefaultAPIHost = "api.orchestrate.io"
+	DefaultAPIHost = "api.cl1.orchestrate.io"
 
 	// The default timeout that will be used for connections. This is used
 	// with the default Transport to establish how long a connection attempt
@@ -56,7 +49,7 @@ var (
 	// This is the default http.Transport that will be associated with new
 	// clients. If overwritten then only new clients will be impacted, old
 	// clients will continue to use the pre-existing transport.
-	DefaultTransport *http.Transport = &http.Transport{
+	DefaultTransport http.RoundTripper = &http.Transport{
 		// In the default configuration we allow 4 idle connections to the
 		// api server. This limits the number of live connections to our
 		// load balancer which reduces load. If needed this can be increased
@@ -71,33 +64,33 @@ var (
 
 		// The default Dial function is over written so it uses net.DialTimeout
 		// instead.
-		Dial: func(network, addr string) (net.Conn, error) {
-			return net.DialTimeout(network, addr, DefaultDialTimeout)
-		},
+		Dial: dialFunc,
 	}
 )
+
+// A dial function for the DefaultTransport.
+func dialFunc(network, addr string) (net.Conn, error) {
+	return net.DialTimeout(network, addr, DefaultDialTimeout)
+}
 
 // We keep the client version here. This is updated when arbitrarily,
 // but should change any time we need to track the version that a
 // given client is actually using.
-const clientVersion = 3
+const clientVersion = 1
 
 // The user agent that should be sent to the Orchestrate servers.
-var userAgent string = fmt.Sprintf("gorc/%d (%s)",
+var userAgent string = fmt.Sprintf("gorc2/%d (%s)",
 	clientVersion, runtime.Version())
 
 // This user agent is used if a client has been using deprecated functions.
 // Then intention is to allow us reach out to the users prior to removing
 // them from the client.
-var userAgentDeprecated string = fmt.Sprintf("gorc/%d (%s) [deprecated]",
+var userAgentDeprecated string = fmt.Sprintf("gorc2/%d (%s) [deprecated]",
 	clientVersion, runtime.Version())
 
-// A representation of a Key/Value object's path within Orchestrate.
-type Path struct {
-	Collection string `json:"collection"`
-	Key        string `json:"key"`
-	Ref        string `json:"ref"`
-}
+//
+// Client
+//
 
 // An Orchestrate Client object.
 type Client struct {
@@ -120,7 +113,7 @@ type Client struct {
 
 // Returns a new Client object that will use the given authToken for
 // authorization against Orchestrate. This token can be obtained
-// at http://dashboard.orchestrate.io
+// at https://dashboard.orchestrate.io
 func NewClient(authToken string) *Client {
 	return &Client{
 		APIHost:    DefaultAPIHost,
@@ -129,44 +122,32 @@ func NewClient(authToken string) *Client {
 	}
 }
 
-// This function is deprecated. Please just set the HTTPClient field on
-// the client object manually.
-func NewClientWithTransport(
-	deprecated_authToken string, deprecated_transport *http.Transport,
-) *Client {
-	client := NewClient(deprecated_authToken)
-	client.HTTPClient = &http.Client{Transport: deprecated_transport}
-	client.deprecated = 1
-	return client
+// Returns a Collection object for a collection with the given name. Note that
+// this call does not verify that the collection exists.
+func (c *Client) Collection(name string) *Collection {
+	return &Collection{
+		client: c,
+		Name:   name,
+	}
 }
 
 // Check that Orchestrate is reachable.
 func (c *Client) Ping() error {
-	resp, err := c.doRequest("HEAD", "", nil, nil)
-	if err != nil {
-		return err
-	}
-
-	// If the request ended in error then read the body into an
-	// OrchestrateError object.
-	if resp.StatusCode != 200 {
-		return newError(resp)
-	}
-
-	// Read the body so the connection can be properly reused.
-	io.Copy(ioutil.Discard, resp.Body)
-
-	return nil
+	//	return nil
+	_, err := c.emptyReply("HEAD", "", nil, nil, 200)
+	return err
 }
 
 // Executes an HTTP request.
-func (c *Client) doRequest(method, trailing string, headers map[string]string, body io.Reader) (*http.Response, error) {
+func (c *Client) doRequest(
+	method, trailing string, headers map[string]string, body io.Reader,
+) (*http.Response, error) {
 	// Get the URL that we should be talking too.
 	host := c.APIHost
 	if host == "" {
 		host = DefaultAPIHost
 	}
-	url := "https://" + host + "/v0/" + trailing
+	url := "http://" + host + "/v0/" + trailing
 
 	// Create the new Request.
 	req, err := http.NewRequest(method, url, body)
@@ -203,41 +184,76 @@ func (c *Client) doRequest(method, trailing string, headers map[string]string, b
 	return client.Do(req)
 }
 
+// This call will perform a simple request which expects no body to be
+// returned. These are typically sued with POST/PUT/DELETE type calls which
+// expect no response from the server.
 //
-// OrchestrateError
-//
-
-// An implementation of 'error' that exposes all the orchestrate specific
-// error details.
-type OrchestrateError struct {
-	// The status string returned from the HTTP call.
-	Status string `json:"-"`
-
-	// The status, as an integer, returned from the HTTP call.
-	StatusCode int `json:"-"`
-
-	// The Orchestrate specific message representing the error.
-	Message string `json:"message"`
-}
-
-// Creates a new OrchestrateError from a given http.Response object.
-func newError(resp *http.Response) error {
-	body, err := ioutil.ReadAll(resp.Body)
+// Any status return other than 'status' will cause an error to be returned
+// from this function.
+func (c *Client) emptyReply(
+	method, path string, headers map[string]string, body io.Reader, status int,
+) (*http.Response, error) {
+	resp, err := c.doRequest(method, path, headers, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	oe := &OrchestrateError{
-		Status:     resp.Status,
-		StatusCode: resp.StatusCode,
-	}
-	if err := json.Unmarshal(body, oe); err != nil {
-		return errors.New(string(body))
+	defer resp.Body.Close()
+
+	// Check the status code.
+	if resp.StatusCode != status {
+		return nil, newError(resp)
 	}
 
-	return oe
+	// Read the whole body to ensure that the connections can be reused. Note
+	// that we don't bother checking errors here since an error will not impact
+	// the code path at all.
+	io.Copy(ioutil.Discard, resp.Body)
+
+	// Success!
+	return resp, nil
 }
 
-// Convert the error to a meaningful string.
-func (e OrchestrateError) Error() string {
-	return fmt.Sprintf("%s (%d): %s", e.Status, e.StatusCode, e.Message)
+// This call will perform a request which expects a JSON body to be returned.
+// The contents of the body will be decoded into the value given.
+//
+// Any status return other than 'status' will cause an error to be returned
+// from this function.
+func (c *Client) jsonReply(
+	method, path string, body io.Reader, status int, value interface{},
+) (*http.Response, error) {
+	headers := map[string]string{"Accept-Encoding": "gzip; deflate"}
+	resp, err := c.doRequest(method, path, headers, body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Ensure that the returned status was expected.
+	if resp.StatusCode != status {
+		return nil, newError(resp)
+	}
+
+	// See what kind of encoding the server is replying with.
+	var decoder *json.Decoder
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		gzipReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		decoder = json.NewDecoder(gzipReader)
+	case "deflate":
+		decoder = json.NewDecoder(flate.NewReader(resp.Body))
+	default:
+		decoder = json.NewDecoder(resp.Body)
+	}
+
+
+	// Decode the body into a json object.
+	if err := decoder.Decode(value); err != nil {
+		return nil, err
+	}
+
+	// Success!
+	return resp, nil
 }

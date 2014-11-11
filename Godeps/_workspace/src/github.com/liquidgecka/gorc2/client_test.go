@@ -12,29 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gorc
+package gorc2
 
 import (
 	"testing"
-	"testing/quick"
+
+//	"github.com/liquidgecka/testlib"
 )
 
-func TestSearchHasNext(t *testing.T) {
-	f := func(results *SearchResults) bool {
-		return !(results.Next == "" && results.HasNext())
-	}
-
-	if err := quick.Check(f, nil); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSearchHasPrev(t *testing.T) {
-	f := func(results *SearchResults) bool {
-		return !(results.Prev == "" && results.HasPrev())
-	}
-
-	if err := quick.Check(f, nil); err != nil {
-		t.Error(err)
+// This exists for nothing more than coverage..
+func TestDialFunc(t *testing.T) {
+	conn, err := dialFunc("bad", "bad")
+	if err == nil {
+		t.Fatalf("err should be non nil.")
+	} else if conn != nil {
+		t.Fatalf("conn should be non nil.")
 	}
 }
