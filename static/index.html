@@ -26,6 +26,8 @@
   <link rel="import"
     href="/bower_components/paper-item/paper-item.html">
   <link rel="import"
+    href="/bower_components/paper-fab/paper-fab.html">
+  <link rel="import"
     href="/bower_components/core-icons/maps-icons.html">
   <link rel="import"
     href="/bower_components/google-map/google-map.html">
@@ -58,18 +60,25 @@
     -webkit-overflow-scrolling: touch;
   }
   core-toolbar {
-    background: orange;
+    background: #FF9F00;
     color: white;
   }
   core-icon-button {
-      color:white;
+    color:white;
   }
-  core-drawer-panel {
-    background: white;
+  core-drawer-panel #drawer {
+    background: #FFBB39;
+    color: white;
   }
   google-map {
     display: block;
     height: 600px;
+  }
+
+  #options {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
   }
   </style>
 
@@ -96,10 +105,11 @@
       </core-list>
     </core-header-panel>
     <div main>
-      <google-map></google-map>
+      <google-map fit></google-map>
     </div>
   </core-drawer-panel>
 
+  <paper-fab icon="settings" id="options"></paper-fab>
 
   </core-header-panel>
   <core-ajax
@@ -115,8 +125,10 @@
     map.latitude = 51.48;
     map.longitude = 0;
 
-    var drawer = document.querySelector('#drawer');
+    var drawer = document.querySelector('core-drawer-panel');
     var list = document.querySelector('core-list');
+
+    var drawerToggleButton = document.getElementById('drawer-toggle');
 
     map.addEventListener('google-map-ready', function(e) {
       google.maps.event.addListener(map.map, 'idle', function() {
@@ -126,13 +138,20 @@
 
     list.addEventListener('core-activate', function(e) {
       var deviceId = e.detail.data.value.ChargeDeviceId;
-      console.log(document.querySelector("#marker-" + deviceId).__proto__);
+      var marker = document.getElementById("marker-" + deviceId);
+      marker.info.open(map.map, marker.marker);
+      drawer.closeDrawer();
+      map.resize();
+    });
+
+    drawer.addEventListener('core-responsive-change', function(e) {
+      drawerToggleButton.hidden = !e.detail.narrow;
     });
 
     chargePointsApi.addEventListener('core-response', function(e) {
       clear();
 
-      list.data = chargePointsApi.response.results;
+      list.data = chargePointsApi.response ? chargePointsApi.response.results : [];
       for (i in chargePointsApi.response.results) {
         var result = chargePointsApi.response.results[i].value;
 
@@ -143,6 +162,7 @@
         marker.longitude = result.ChargeDeviceLocation.Longitude;
         marker.id = "marker-"+result.ChargeDeviceId;
         marker.innerHTML = result.ChargeDeviceName;
+        marker.title = result.ChargeDeviceName;
 
         map.appendChild(marker);
       }
@@ -193,17 +213,22 @@
       chargePointsApi.params =  '{' +
                                   '"sort":"value.ChargeDeviceLocation:distance:asc",' +
                                   '"limit":"100",' +
-                                  '"query":"value.ChargeDeviceLocation:IN:{north:'+ne.lat()+' east:'+ne.lng()+' south:'+sw.lat()+' west:'+sw.lng()+'}"' +
+                                  '"query":"value.ChargeDeviceLocation:IN:{' +
+                                    ' north:'+ne.lat() +
+                                    ' east:'+ne.lng() +
+                                    ' south:'+sw.lat() +
+                                    ' west:'+sw.lng() +
+                                  '}"' +
                                 '}';
       chargePointsApi.go();
     }
 
-    document.querySelector('#refresh').addEventListener('click', function () {
+    document.getElementById('refresh').addEventListener('click', function () {
       clear();
       loadChargePoints(map);
     });
 
-    document.querySelector('#locate').addEventListener('click', function () {
+    document.getElementById('locate').addEventListener('click', function () {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(geo) {
           if (inUK(geo.coords)) {
@@ -218,8 +243,8 @@
       }
     });
 
-    document.querySelector('#drawer-toggle').addEventListener('click', function(e) {
-      document.querySelector('core-drawer-panel').togglePanel();
+    drawerToggleButton.addEventListener('click', function(e) {
+      drawer.togglePanel();
     });
   </script>
 </body>
