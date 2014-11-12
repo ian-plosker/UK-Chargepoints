@@ -8,7 +8,7 @@
   <meta name="viewport"
   content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
 
-  <script src="/bower_components/platform/platform.js"></script>
+  <script src="bower_components/webcomponentsjs/webcomponents.js"></script>
 
   <link rel="import"
     href="/bower_components/font-roboto/roboto.html">
@@ -24,9 +24,17 @@
   <link rel="import"
     href="/bower_components/core-icon-button/core-icon-button.html">
   <link rel="import"
+    href="/bower_components/paper-button/paper-button.html">
+  <link rel="import"
     href="/bower_components/paper-item/paper-item.html">
   <link rel="import"
     href="/bower_components/paper-fab/paper-fab.html">
+  <link rel="import"
+    href="/bower_components/paper-dialog/paper-action-dialog.html">
+  <link rel="import"
+    href="/bower_components/paper-slider/paper-slider.html">
+  <link rel="import"
+    href="/bower_components/paper-toggle-button/paper-toggle-button.html">
   <link rel="import"
     href="/bower_components/core-icons/maps-icons.html">
   <link rel="import"
@@ -60,7 +68,7 @@
     -webkit-overflow-scrolling: touch;
   }
   core-toolbar {
-    background: #FF9F00;
+    background: #FFBB39;
     color: white;
   }
   core-icon-button {
@@ -74,11 +82,18 @@
     display: block;
     height: 600px;
   }
-
-  #options {
+  paper-slider {
+    width: 100%;
+  }
+  #settings-button {
+    background: #FFBB39;
     position: fixed;
     bottom: 10px;
     left: 10px;
+  }
+  paper-action-dialog paper-button {
+    background: #FFBB39;
+    color: white;
   }
   </style>
 
@@ -87,29 +102,49 @@
 <body unresolved>
   <core-header-panel>
 
-  <core-toolbar>
-    <div flex>UK Charge Points</div>
-    <core-icon-button icon="maps:my-location" id="locate"></core-icon-button>
-    <core-icon-button icon="refresh" id="refresh"></core-icon-button>
-    <core-icon-button icon="list" id="drawer-toggle"></core-icon-button>
-  </core-toolbar>
+    <core-toolbar>
+      <div flex>UK Charge Points</div>
+      <core-icon-button icon="maps:my-location" id="locate"></core-icon-button>
+      <core-icon-button icon="refresh" id="refresh"></core-icon-button>
+      <core-icon-button icon="list" id="drawer-toggle"></core-icon-button>
+    </core-toolbar>
 
-  <core-drawer-panel rightDrawer>
-    <core-header-panel drawer id="drawer">
-      <core-list>
-        <template>
-          <div class="{{ {selected: selected} | tokenList }}">
-            <paper-item label="{{model.value.ChargeDeviceName}}" id="item-{{model.value.ChargeDeviceId}}"></paper-item>
-          </div>
-        </template>
-      </core-list>
-    </core-header-panel>
-    <div main>
-      <google-map fit></google-map>
-    </div>
-  </core-drawer-panel>
+    <core-drawer-panel rightDrawer>
+      <core-header-panel drawer id="drawer">
+        <core-list>
+          <template>
+            <div class="{{ {selected: selected} | tokenList }}">
+              <paper-item label="{{model.value.ChargeDeviceName}}" id="item-{{model.value.ChargeDeviceId}}"></paper-item>
+            </div>
+          </template>
+        </core-list>
+      </core-header-panel>
+      <div main>
+        <google-map fit></google-map>
+      </div>
+    </core-drawer-panel>
 
-  <paper-fab icon="settings" id="options"></paper-fab>
+    <paper-action-dialog heading="Search Settings" id="settings-dialog">
+      <br>
+      <div center horizontal layout justified>
+        <div>Min Output kW</div>
+        <paper-slider min="0" max="50" value="0" pin flex></paper-slider>
+      </div>
+      <br>
+      <div center horizontal layout justified>
+        <div>Open 24 Hours</div>
+        <paper-toggle-button></paper-toggle-button>
+      </div>
+      <br>
+      <div center horizontal layout justified>
+        <div>Free Only</div>
+        <paper-toggle-button></paper-toggle-button>
+      </div>
+      <paper-button dismissive>Cancel</paper-button>
+      <paper-button affirmative>Apply</paper-button>
+    </paper-action-dialog>
+
+    <paper-fab icon="settings" id="settings-button"></paper-fab>
 
   </core-header-panel>
   <core-ajax
@@ -130,6 +165,9 @@
 
     var drawerToggleButton = document.getElementById('drawer-toggle');
 
+    var settingsDialog = document.getElementById('settings-dialog');
+    var settingsButton = document.getElementById('settings-button');
+
     map.addEventListener('google-map-ready', function(e) {
       google.maps.event.addListener(map.map, 'idle', function() {
         loadChargePoints(map);
@@ -144,6 +182,11 @@
       map.resize();
     });
 
+    settingsButton.addEventListener('click', function(e) {
+      settingsDialog.toggle();
+    });
+
+
     drawer.addEventListener('core-responsive-change', function(e) {
       drawerToggleButton.hidden = !e.detail.narrow;
     });
@@ -151,7 +194,7 @@
     chargePointsApi.addEventListener('core-response', function(e) {
       clear();
 
-      list.data = chargePointsApi.response ? chargePointsApi.response.results : [];
+      list.data = chargePointsApi.response.results;
       for (i in chargePointsApi.response.results) {
         var result = chargePointsApi.response.results[i].value;
 

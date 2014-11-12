@@ -94,6 +94,5 @@ func search(ctx *web.Context, collection string) {
 		encoder.Encode(&results)
 	}
 
-
 	ctx.Write(buf.Bytes())
 }
