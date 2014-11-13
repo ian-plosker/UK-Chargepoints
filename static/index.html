@@ -22,6 +22,8 @@
   <link rel="import"
     href="/bower_components/core-list/core-list.html">
   <link rel="import"
+    href="/bower_components/core-collapse/core-collapse.html">
+  <link rel="import"
     href="/bower_components/core-icon-button/core-icon-button.html">
   <link rel="import"
     href="/bower_components/paper-button/paper-button.html">
@@ -33,6 +35,8 @@
     href="/bower_components/paper-dialog/paper-action-dialog.html">
   <link rel="import"
     href="/bower_components/paper-slider/paper-slider.html">
+  <link rel="import"
+    href="/bower_components/paper-spinner/paper-spinner.html">
   <link rel="import"
     href="/bower_components/paper-toggle-button/paper-toggle-button.html">
   <link rel="import"
@@ -54,15 +58,15 @@
     overflow: auto;
   }
   core-toolbar {
-    background: #FFBB39;
+    background: #6DC9CA;
     color: white;
   }
   core-icon-button {
     color:white;
   }
   core-drawer-panel #drawer {
-    background: #FFBB39;
-    color: white;
+    background: #F2F5F5;
+    color: #666666;
     height: 100%;
     overflow: auto;
   }
@@ -74,7 +78,7 @@
     width: 100%;
   }
   #settings-button {
-    background: #FFBB39;
+    background: #6DC9CA;
     position: fixed;
     bottom: 10px;
     left: 10px;
@@ -91,6 +95,7 @@
   <core-header-panel>
 
     <core-toolbar>
+      <paper-spinner id="spinner"></paper-spinner>
       <div flex>UK Charge Points</div>
       <core-icon-button icon="maps:my-location" id="locate"></core-icon-button>
       <core-icon-button icon="refresh" id="refresh"></core-icon-button>
@@ -169,6 +174,8 @@
     var freeOnly = false;
     var freeOnlyToggle = document.getElementById('free-only');
 
+    var spinner = document.getElementById('spinner');
+
     settingsDialog.querySelector('paper-button[affirmative]').addEventListener('click', function(e) {
       minkW = minkWSlider.value;
       twentyFourHrsOnly = twentyFourHrsOnlyToggle.checked;
@@ -212,13 +219,20 @@
         marker.latitude = result.ChargeDeviceLocation.Latitude;
         marker.longitude = result.ChargeDeviceLocation.Longitude;
         marker.id = "marker-"+result.ChargeDeviceId;
-        marker.innerHTML = result.ChargeDeviceName;
         marker.title = result.ChargeDeviceName;
+        marker.innerHTML = result.ChargeDeviceName;
+
+        var details = document.createElement('core-collapse');
+        var detailsPre = document.createElement('pre');
+        detailsPre.innerText = result;
+        details.appendChild(detailsPre);
+        marker.appendChild(details);
 
         map.appendChild(marker);
       }
       map.fitToMarkers = true;
       map.fitToMarkers = false;
+      spinner.active = false;
     });
 
     var boundingBoxUK =  {
@@ -285,6 +299,8 @@
                                   "limit": "100",
                                   "query": queryParams
                                 };
+
+      spinner.active = true;
       chargePointsApi.go();
     }
 
