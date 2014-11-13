@@ -32,6 +32,8 @@
   <link rel="import"
     href="/bower_components/paper-fab/paper-fab.html">
   <link rel="import"
+    href="/bower_components/paper-dialog/paper-dialog.html">
+  <link rel="import"
     href="/bower_components/paper-dialog/paper-action-dialog.html">
   <link rel="import"
     href="/bower_components/paper-slider/paper-slider.html">
@@ -50,10 +52,10 @@
   html,body {
     height: 100%;
     margin: 0;
-    background-color: #E5E5E5;
+    background-color: #F2F5F5;
     font-family: 'RobotoDraft', sans-serif;
   }
-  core-header-panel {
+  core-header-panel#main {
     height: 100%;
     overflow: auto;
   }
@@ -77,6 +79,10 @@
   paper-slider {
     width: 100%;
   }
+  paper-dialog {
+    background: #F2F5F5;
+    color: #666666;
+  }
   #settings-button {
     background: #6DC9CA;
     position: fixed;
@@ -92,7 +98,7 @@
 </head>
 
 <body unresolved>
-  <core-header-panel>
+  <core-header-panel id="main">
 
     <core-toolbar>
       <paper-spinner id="spinner"></paper-spinner>
@@ -145,8 +151,6 @@
     handleAs="json">
   </core-ajax>
   <script>
-    var tabs = document.querySelector('paper-tabs');
-
     var chargePointsApi = document.querySelector('core-ajax');
 
     var map = document.querySelector('google-map');
@@ -161,12 +165,6 @@
     var settingsDialog = document.getElementById('settings-dialog');
     var settingsButton = document.getElementById('settings-button');
 
-    map.addEventListener('google-map-ready', function(e) {
-      google.maps.event.addListener(map.map, 'idle', function() {
-        loadChargePoints(map);
-      });
-    });
-
     var minkW = 0;
     var minkWSlider = document.getElementById('min-kw');
     var twentyFourHrsOnly = false;
@@ -175,6 +173,12 @@
     var freeOnlyToggle = document.getElementById('free-only');
 
     var spinner = document.getElementById('spinner');
+
+    map.addEventListener('google-map-ready', function(e) {
+      google.maps.event.addListener(map.map, 'idle', function() {
+        loadChargePoints(map);
+      });
+    });
 
     settingsDialog.querySelector('paper-button[affirmative]').addEventListener('click', function(e) {
       minkW = minkWSlider.value;
@@ -220,13 +224,8 @@
         marker.longitude = result.ChargeDeviceLocation.Longitude;
         marker.id = "marker-"+result.ChargeDeviceId;
         marker.title = result.ChargeDeviceName;
-        marker.innerHTML = result.ChargeDeviceName;
-
-        var details = document.createElement('core-collapse');
-        var detailsPre = document.createElement('pre');
-        detailsPre.innerText = result;
-        details.appendChild(detailsPre);
-        marker.appendChild(details);
+        marker.innerHTML = '<a href="#" onclick="openDetailsDialog(\''+result.ChargeDeviceId+'\')">'+result.ChargeDeviceName+'</a>';
+        marker.details = result;
 
         map.appendChild(marker);
       }
@@ -235,17 +234,28 @@
       spinner.active = false;
     });
 
+    function openDetailsDialog(chargeDeviceId) {
+      var result = document.getElementById("marker-"+chargeDeviceId).details;
+      var dialog = document.createElement('paper-dialog');
+      dialog.heading = result.ChargeDeviceName;
+      var details = document.createElement('pre');
+      details.innerText = JSON.stringify(result, null, '  ');
+      dialog.appendChild(details);
+      document.getElementById('main').appendChild(dialog);
+      dialog.toggle();
+    }
+
+    function clear() {
+      map.clear();
+      list.data = [];
+    }
+
     var boundingBoxUK =  {
       north: 60.854691,
       east: 1.768960,
       south: 49.162090,
       west: -13.413930
     };
-
-    function clear() {
-      map.clear();
-      list.data = [];
-    }
 
     function intersectsUK(bounds) {
       var ne = new google.maps.LatLng(boundingBoxUK.north, boundingBoxUK.east);
