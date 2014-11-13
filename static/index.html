@@ -89,9 +89,22 @@
     bottom: 10px;
     left: 10px;
   }
+  #info-button {
+    background: #6DC9CA;
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+  }
   #settings-dialog paper-button {
     background: #FFBB39;
     color: white;
+  }
+  #info-dialog pre {
+    overflow-x:auto;
+  }
+  core-toolbar#item-count {
+    background-color: #666666;
+    color: #F2F5F5;
   }
   </style>
 
@@ -109,15 +122,16 @@
     </core-toolbar>
 
     <core-drawer-panel rightDrawer>
-      <div drawer id="drawer">
-        <core-list id="list" fit>
+      <core-header-panel drawer id="drawer" mode="waterfall">
+        <core-toolbar id="item-count"></core-toolbar>
+        <core-list id="list" runwayFactor="100" fit>
           <template>
             <div class="row {{ {selected: selected} | tokenList }}">
               <paper-item label="{{model.value.ChargeDeviceName}}" id="item-{{model.value.ChargeDeviceId}}"></paper-item>
             </div>
           </template>
         </core-list>
-      </div>
+      </core-header-panel>
       <div main>
         <google-map></google-map>
       </div>
@@ -143,7 +157,10 @@
       <paper-button affirmative>Apply</paper-button>
     </paper-action-dialog>
 
+    <paper-dialog heading="Orchestrate Query Parameters" id="info-dialog"></paper-dialog>
+
     <paper-fab icon="settings" id="settings-button"></paper-fab>
+    <paper-fab icon="info-outline" id="info-button"></paper-fab>
 
   </core-header-panel>
   <core-ajax
@@ -159,11 +176,15 @@
 
     var drawer = document.querySelector('core-drawer-panel');
     var list = document.querySelector('core-list');
+    var itemCount = document.getElementById('item-count');
 
     var drawerToggleButton = document.getElementById('drawer-toggle');
 
     var settingsDialog = document.getElementById('settings-dialog');
     var settingsButton = document.getElementById('settings-button');
+
+    var infoDialog = document.getElementById('info-dialog');
+    var infoButton = document.getElementById('info-button');
 
     var minkW = 0;
     var minkWSlider = document.getElementById('min-kw');
@@ -206,6 +227,11 @@
       settingsDialog.toggle();
     });
 
+    infoButton.addEventListener('click', function(e) {
+      infoDialog.innerHTML = "<pre>"+JSON.stringify(chargePointsApi.params, null, "  ")+"</pre>";
+      infoDialog.toggle();
+    });
+
     drawer.addEventListener('core-responsive-change', function(e) {
       drawerToggleButton.hidden = !e.detail.narrow;
     });
@@ -213,7 +239,11 @@
     chargePointsApi.addEventListener('core-response', function(e) {
       clear();
 
-      list.data = chargePointsApi.response ? chargePointsApi.response.results : [];
+      list.data = chargePointsApi.response != null ? chargePointsApi.response.results : [];
+
+      var count = list.data ? list.data.length : 0;
+      itemCount.innerText = count + " result" + (count != 1 ? "s" : "");
+
       for (i in chargePointsApi.response.results) {
         var result = chargePointsApi.response.results[i].value;
 
@@ -290,7 +320,7 @@
         ' east:'+ne.lng() +
         ' south:'+sw.lat() +
         ' west:'+sw.lng() +
-      '}';
+      ' }';
 
       if (minkW > 0) {
         queryParams += " AND value.Connector.RatedOutputkW:["+minkW+" TO *]"
