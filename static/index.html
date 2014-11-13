@@ -49,23 +49,9 @@
     background-color: #E5E5E5;
     font-family: 'RobotoDraft', sans-serif;
   }
-  .container {
-    width: 80%;
-    margin: 50px auto;
-  }
-  @media (min-width: 481px) {
-    #tabs {
-      width: 200px;
-    }
-    .container {
-      width: 400px;
-    }
-  }
-
   core-header-panel {
     height: 100%;
     overflow: auto;
-    -webkit-overflow-scrolling: touch;
   }
   core-toolbar {
     background: #FFBB39;
@@ -77,6 +63,8 @@
   core-drawer-panel #drawer {
     background: #FFBB39;
     color: white;
+    height: 100%;
+    overflow: auto;
   }
   google-map {
     display: block;
@@ -91,7 +79,7 @@
     bottom: 10px;
     left: 10px;
   }
-  paper-action-dialog paper-button {
+  #settings-dialog paper-button {
     background: #FFBB39;
     color: white;
   }
@@ -110,17 +98,17 @@
     </core-toolbar>
 
     <core-drawer-panel rightDrawer>
-      <core-header-panel drawer id="drawer">
-        <core-list>
+      <div drawer id="drawer">
+        <core-list id="list" fit>
           <template>
-            <div class="{{ {selected: selected} | tokenList }}">
+            <div class="row {{ {selected: selected} | tokenList }}">
               <paper-item label="{{model.value.ChargeDeviceName}}" id="item-{{model.value.ChargeDeviceId}}"></paper-item>
             </div>
           </template>
         </core-list>
-      </core-header-panel>
+      </div>
       <div main>
-        <google-map fit></google-map>
+        <google-map></google-map>
       </div>
     </core-drawer-panel>
 
@@ -128,17 +116,17 @@
       <br>
       <div center horizontal layout justified>
         <div>Min Output kW</div>
-        <paper-slider min="0" max="50" value="0" pin flex></paper-slider>
+        <paper-slider id="min-kw" min="0" max="50" value="0" pin flex></paper-slider>
       </div>
       <br>
       <div center horizontal layout justified>
         <div>Open 24 Hours</div>
-        <paper-toggle-button></paper-toggle-button>
+        <paper-toggle-button id="24-hrs-only"></paper-toggle-button>
       </div>
       <br>
       <div center horizontal layout justified>
         <div>Free Only</div>
-        <paper-toggle-button></paper-toggle-button>
+        <paper-toggle-button id="free-only"></paper-toggle-button>
       </div>
       <paper-button dismissive>Cancel</paper-button>
       <paper-button affirmative>Apply</paper-button>
@@ -174,6 +162,27 @@
       });
     });
 
+    var minkW = 0;
+    var minkWSlider = document.getElementById('min-kw');
+    var twentyFourHrsOnly = false;
+    var twentyFourHrsOnlyToggle = document.getElementById('24-hrs-only');
+    var freeOnly = false;
+    var freeOnlyToggle = document.getElementById('free-only');
+
+    settingsDialog.querySelector('paper-button[affirmative]').addEventListener('click', function(e) {
+      minkW = minkWSlider.value;
+      twentyFourHrsOnly = twentyFourHrsOnlyToggle.checked;
+      freeOnly = freeOnlyToggle.checked;
+
+      loadChargePoints(map);
+    });
+
+    settingsDialog.querySelector('paper-button[dismissive]').addEventListener('click', function(e) {
+      minkWSlider.value = minkW;
+      twentyFourHrsOnlyToggle.checked = twentyFourHrsOnly;
+      freeOnlyToggle.checked = freeOnly;
+    });
+
     list.addEventListener('core-activate', function(e) {
       var deviceId = e.detail.data.value.ChargeDeviceId;
       var marker = document.getElementById("marker-" + deviceId);
@@ -186,7 +195,6 @@
       settingsDialog.toggle();
     });
 
-
     drawer.addEventListener('core-responsive-change', function(e) {
       drawerToggleButton.hidden = !e.detail.narrow;
     });
@@ -194,7 +202,7 @@
     chargePointsApi.addEventListener('core-response', function(e) {
       clear();
 
-      list.data = chargePointsApi.response.results;
+      list.data = chargePointsApi.response ? chargePointsApi.response.results : [];
       for (i in chargePointsApi.response.results) {
         var result = chargePointsApi.response.results[i].value;
 
@@ -253,16 +261,30 @@
       var ne = bounds.getNorthEast()
       var sw = bounds.getSouthWest()
 
-      chargePointsApi.params =  '{' +
-                                  '"sort":"value.ChargeDeviceLocation:distance:asc",' +
-                                  '"limit":"100",' +
-                                  '"query":"value.ChargeDeviceLocation:IN:{' +
-                                    ' north:'+ne.lat() +
-                                    ' east:'+ne.lng() +
-                                    ' south:'+sw.lat() +
-                                    ' west:'+sw.lng() +
-                                  '}"' +
-                                '}';
+      var queryParams = "value.ChargeDeviceLocation:IN:{" +
+        ' north:'+ne.lat() +
+        ' east:'+ne.lng() +
+        ' south:'+sw.lat() +
+        ' west:'+sw.lng() +
+      '}';
+
+      if (minkW > 0) {
+        queryParams += " AND value.Connector.RatedOutputkW:["+minkW+" TO *]"
+      }
+
+      if (twentyFourHrsOnly) {
+        queryParams += " AND value.Accessible24Hours:true"
+      }
+
+      if (freeOnly) {
+        queryParams += " AND value.PaymentRequiredFlag:false"
+      }
+
+      chargePointsApi.params =  {
+                                  "sort": "value.ChargeDeviceLocation:distance:asc",
+                                  "limit": "100",
+                                  "query": queryParams
+                                };
       chargePointsApi.go();
     }
 
