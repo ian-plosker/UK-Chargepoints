@@ -17,7 +17,7 @@
   var fills = 'backwards|forwards|both'.split('|');
   var directions = 'reverse|alternate|alternate-reverse'.split('|');
 
-  function normalizeTimingInput(timingInput, forGroup) {
+  function makeTiming(timingInput, forGroup) {
     var timing = {
       delay: 0,
       endDelay: 0,
@@ -29,7 +29,6 @@
       direction: 'normal',
       easing: 'linear',
     };
-
     if (typeof timingInput == 'number') {
       timing.duration = timingInput;
     } else if (timingInput !== undefined) {
@@ -48,6 +47,11 @@
         }
       });
     }
+    return timing;
+  }
+
+  function normalizeTimingInput(timingInput, forGroup) {
+    var timing = makeTiming(timingInput, forGroup);
     timing.easing = toTimingFunction(timing.easing);
     return timing;
   }
@@ -190,6 +194,8 @@
     var currentDirectionIsForwards = timing.direction == 'normal' || timing.direction == (currentIterationIsOdd ? 'alternate-reverse' : 'alternate');
     var directedTime = currentDirectionIsForwards ? iterationTime : iterationDuration - iterationTime;
     var timeFraction = directedTime / iterationDuration;
+    if (isNaN(timeFraction))
+      return null;
     return iterationDuration * timing.easing(timeFraction);
   }
 
@@ -207,6 +213,7 @@
     return calculateTransformedTime(currentIteration, timing.duration, iterationTime, timing) / timing.duration;
   }
 
+  shared.makeTiming = makeTiming;
   shared.normalizeTimingInput = normalizeTimingInput;
   shared.calculateActiveDuration = calculateActiveDuration;
   shared.calculateTimeFraction = calculateTimeFraction;

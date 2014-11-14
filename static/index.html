@@ -10,6 +10,9 @@
 
   <script src="bower_components/webcomponentsjs/webcomponents.js"></script>
 
+  <script src="//cdnjs.cloudflare.com/ajax/libs/prettify/r298/run_prettify.js" type="text/javascript"></script>
+  <link href="//cdnjs.cloudflare.com/ajax/libs/prettify/r298/prettify.css" type="text/css">
+
   <link rel="import"
     href="/bower_components/font-roboto/roboto.html">
 
@@ -55,6 +58,19 @@
     background-color: #F2F5F5;
     font-family: 'RobotoDraft', sans-serif;
   }
+  div#title {
+    font-size: 16pt;
+  }
+  @media screen and (max-width: 640px){
+    div#title {
+      font-size: 14pt;
+    }
+  }
+  @media screen and (max-width: 320px){
+    div#title {
+      font-size: 10pt;
+    }
+  }
   core-header-panel#main {
     height: 100%;
     overflow: auto;
@@ -62,6 +78,9 @@
   core-toolbar {
     background: #6DC9CA;
     color: white;
+  }
+  paper-spinner::shadow .circle {
+    border-color: #db4437;
   }
   core-icon-button {
     color:white;
@@ -95,8 +114,11 @@
     bottom: 10px;
     right: 10px;
   }
-  #settings-dialog paper-button {
-    background: #FFBB39;
+  paper-slider {
+    width: 160px;
+  }
+  paper-button {
+    background: #6DC9CA;
     color: white;
   }
   #info-dialog pre {
@@ -106,6 +128,9 @@
     background-color: #666666;
     color: #F2F5F5;
   }
+  core-icon {
+        margin: 0 0 0 0 ! important;
+      }
   </style>
 
 </head>
@@ -115,7 +140,7 @@
 
     <core-toolbar>
       <paper-spinner id="spinner"></paper-spinner>
-      <div flex>UK Charge Points</div>
+      <div flex id="title">UK Charge Points</div>
       <core-icon-button icon="maps:my-location" id="locate"></core-icon-button>
       <core-icon-button icon="refresh" id="refresh"></core-icon-button>
       <core-icon-button icon="list" id="drawer-toggle"></core-icon-button>
@@ -228,7 +253,7 @@
     });
 
     infoButton.addEventListener('click', function(e) {
-      infoDialog.innerHTML = "<pre>"+JSON.stringify(chargePointsApi.params, null, "  ")+"</pre>";
+      infoDialog.innerHTML = "<pre>"+JSON.stringify(chargePointsApi.params, jsonReplacer, "  ")+"</pre>";
       infoDialog.toggle();
     });
 
@@ -242,7 +267,7 @@
       list.data = chargePointsApi.response != null ? chargePointsApi.response.results : [];
 
       var count = list.data ? list.data.length : 0;
-      itemCount.innerText = count + " result" + (count != 1 ? "s" : "");
+      itemCount.innerHTML= "<div>" + count + " result" + (count != 1 ? "s" : "") + "</div>";
 
       for (i in chargePointsApi.response.results) {
         var result = chargePointsApi.response.results[i].value;
@@ -269,7 +294,8 @@
       var dialog = document.createElement('paper-dialog');
       dialog.heading = result.ChargeDeviceName;
       var details = document.createElement('pre');
-      details.innerText = JSON.stringify(result, null, '  ');
+      details.class = "prettyprint";
+      details.innerText = JSON.stringify(result, jsonReplacer, '  ');
       dialog.appendChild(details);
       document.getElementById('main').appendChild(dialog);
       dialog.toggle();
@@ -280,7 +306,7 @@
       list.data = [];
     }
 
-    var boundingBoxUK =  {
+    var boundingBoxUK = {
       north: 60.854691,
       east: 1.768960,
       south: 49.162090,
@@ -342,6 +368,13 @@
 
       spinner.active = true;
       chargePointsApi.go();
+    }
+
+    function jsonReplacer(key, value) {
+      if (value === null) {
+        return undefined;
+      }
+      return value;
     }
 
     document.getElementById('refresh').addEventListener('click', function () {
