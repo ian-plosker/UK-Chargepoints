@@ -152,7 +152,7 @@
         <core-list id="list" runwayFactor="100" fit>
           <template>
             <div class="row {{ {selected: selected} | tokenList }}">
-              <paper-item label="{{model.value.ChargeDeviceName}}" id="item-{{model.value.ChargeDeviceId}}"></paper-item>
+              <paper-item label="{{model.value.ChargeDeviceName}}" id="item-{{model.value.ChargeDeviceId}}">{{model.value.ChargeDeviceName}}</paper-item>
             </div>
           </template>
         </core-list>
