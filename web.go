@@ -7,7 +7,6 @@ import (
 	"github.com/hoisie/web"
 	"log"
 	"os"
-	"strconv"
 )
 
 var (
@@ -27,7 +26,7 @@ type Results struct {
 func main() {
 	web.Config.StaticDir = "static"
 	port := os.Getenv("PORT")
-	web.Get("/api/([^/]+/?)", search)
+		web.Get("/api/([^/]+/?)", search)
 	web.Run(":" + port)
 }
 
@@ -41,23 +40,12 @@ func search(ctx *web.Context, collection string) {
 
 	query := ctx.Params["query"]
 
-	var limit, offset int64
 	var err error
-
-	if limit, err = strconv.ParseInt(ctx.Params["limit"], 10, 32); err != nil {
-		limit = 10
-		err = nil
-	}
-	if offset, err = strconv.ParseInt(ctx.Params["offset"], 10, 32); err != nil {
-		offset = 0
-		err = nil
-	}
 
 	c := orc.Collection(collection)
 
 	searchParms := &gorc2.SearchQuery{
-		Limit: int(limit),
-		Offset: offset,
+		Limit: int(100),
 		Sort: ctx.Params["sort"],
 	}
 
