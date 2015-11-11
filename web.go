@@ -11,7 +11,7 @@ import (
 
 var (
 	orc = gorc2.NewClient(os.Getenv("ORC_KEY"))
-	host = os.Getenv("ORC_HOST")
+	host = "api.orchestrate.io"
 )
 
 type Result struct {
