@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
-	"chargepoints/Godeps/_workspace/src/github.com/hoisie/web"
-	"chargepoints/Godeps/_workspace/src/github.com/liquidgecka/gorc2"
+	"github.com/hoisie/web"
+	"github.com/liquidgecka/gorc2"
 	"encoding/json"
 	"log"
 	"os"
