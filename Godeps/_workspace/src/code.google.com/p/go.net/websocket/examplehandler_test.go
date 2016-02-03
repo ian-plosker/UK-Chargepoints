@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"code.google.com/p/go.net/websocket"
+	"chargepoints/Godeps/_workspace/src/code.google.com/p/go.net/websocket"
 )
 
 // Echo the data received on the WebSocket.

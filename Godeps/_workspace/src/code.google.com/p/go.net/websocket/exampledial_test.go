@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"code.google.com/p/go.net/websocket"
+	"chargepoints/Godeps/_workspace/src/code.google.com/p/go.net/websocket"
 )
 
 // This example demonstrates a trivial client.

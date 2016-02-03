@@ -1,8 +1,8 @@
 package main
 
 import (
-    "fmt"
-    "github.com/hoisie/web"
+	"chargepoints/Godeps/_workspace/src/github.com/hoisie/web"
+	"fmt"
 )
 
 var page = `
@@ -33,11 +33,11 @@ var page = `
 func index() string { return page }
 
 func process(ctx *web.Context) string {
-    return fmt.Sprintf("%v\n", ctx.Params)
+	return fmt.Sprintf("%v\n", ctx.Params)
 }
 
 func main() {
-    web.Get("/", index)
-    web.Post("/process", process)
-    web.Run("0.0.0.0:9999")
+	web.Get("/", index)
+	web.Post("/process", process)
+	web.Run("0.0.0.0:9999")
 }

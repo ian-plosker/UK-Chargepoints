@@ -2,15 +2,15 @@ package main
 
 import (
 	"bytes"
-	"github.com/liquidgecka/gorc2"
+	"chargepoints/Godeps/_workspace/src/github.com/hoisie/web"
+	"chargepoints/Godeps/_workspace/src/github.com/liquidgecka/gorc2"
 	"encoding/json"
-	"github.com/hoisie/web"
 	"log"
 	"os"
 )
 
 var (
-	orc = gorc2.NewClient(os.Getenv("ORC_KEY"))
+	orc  = gorc2.NewClient(os.Getenv("ORC_KEY"))
 	host = "api.orchestrate.io"
 )
 
@@ -20,18 +20,18 @@ type Result struct {
 
 type Results struct {
 	Results []Result `json:"results"`
-	Count int `json:"count"`
+	Count   int      `json:"count"`
 }
 
 func main() {
 	web.Config.StaticDir = "static"
 	port := os.Getenv("PORT")
-		web.Get("/api/([^/]+/?)", search)
+	web.Get("/api/([^/]+/?)", search)
 	web.Run(":" + port)
 }
 
 func search(ctx *web.Context, collection string) {
-	if (host != "") {
+	if host != "" {
 		orc.APIHost = host
 	}
 
@@ -46,7 +46,7 @@ func search(ctx *web.Context, collection string) {
 
 	searchParms := &gorc2.SearchQuery{
 		Limit: int(100),
-		Sort: ctx.Params["sort"],
+		Sort:  ctx.Params["sort"],
 	}
 
 	it := c.Search(query, searchParms)
@@ -61,7 +61,7 @@ func search(ctx *web.Context, collection string) {
 
 		result := Result{}
 
-	  if _, err := it.Get(&result.Value); err != nil {
+		if _, err := it.Get(&result.Value); err != nil {
 			log.Println(err)
 			break
 		}
